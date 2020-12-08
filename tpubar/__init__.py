@@ -308,11 +308,29 @@ def tpunicorn_query(project):
 
 _mesh_memory = {
     'v2-8': 6.872e+10,
+    'v2-32': 2.749e+11,
+    'v2-128': 1e+12,
+    'v2-256': 2e+12,
+    'v2-512': 4e+12,
     'v3-8': 1.374e+11,
+    'v3-32': 5.498e+11,
+    'v3-64': 1e+12,
+    'v3-128': 2e+12,
+    'v3-256': 4e+12,
+    'v3-512': 8e+12
+}
+
+
+_timer_formats = {
+    'secs': ['sec', 'secs', 'second', 'seconds', 's'],
+    'mins': ['min', 'mins', 'minute', 'minutes', 'm'],
+    'hrs': ['hr', 'hrs', 'hour', 'hours', 'h'],
+    'days': ['day', 'days', 'd'],
+    'wks': ['wk', 'wks', 'week', 'weeks' 'w']
 }
 
 class TPUMonitor:
-    def __init__(self, tpu_name=None, project=None, profiler='v1', refresh_secs=10, fileout=None, verbose=True, tpu_util='green', tpu_secondary='yellow', cpu_util='blue', ram_util='blue'):
+    def __init__(self, tpu_name=None, project=None, profiler='v1', refresh_secs=10, fileout=None, verbose=False, tpu_util='green', tpu_secondary='yellow', cpu_util='blue', ram_util='blue'):
         if profiler in ['v1', 'v2']:
             self.tpu_init_tf2(tpu_name) if profiler == 'v2' else self.tpu_init_tf1(tpu_name)
         elif env['profiler'] or env['colab']:
@@ -332,6 +350,7 @@ class TPUMonitor:
         self.current_stats = {}
         self.idx = 0
         self.hwdata()
+        self.time = time.time()
         self._lock = Lock()
 
     def start(self, daemon=True):
@@ -355,26 +374,22 @@ class TPUMonitor:
         tpu_stats = self.tpu_profiler()
         if tpu_stats['tpu_mxu']:
             self.tbar.n = tpu_stats['tpu_mxu']
-            #self.tbar.refresh(nolock=True)
             
         if self.profiler_ver == 'v2':
             idle_time = tpu_stats.get('tpu_idle_time', None)
             if idle_time:
                 self.t2bar.n = (100.00 - idle_time)
-                #self.t2bar.refresh(nolock=True)
 
         else:
             tpu_mem = tpu_stats.get('tpu_memory_percent', None)
             if tpu_mem:
                 self.t2bar.n = tpu_mem
                 self.t2bar.set_description(tpu_stats.get('tpu_memory_string', ''), refresh=False)
-                #self.t2bar.refresh(nolock=True)
                 
         self.cbar.n = self.cpu_utilization()
         rperc, rutil = self.ram_utilization()
         self.rbar.n = rperc
         self.rbar.set_description(rutil, refresh=False)
-        #self.rbar.refresh(nolock=True)
         self.current_stats = tpu_stats
 
         self.refresh_all()
@@ -384,13 +399,12 @@ class TPUMonitor:
         self.idx += 1
 
     def refresh_all(self):
-        if (self.idx+1) % 2 == 0:
+        if (self.idx+1) % 10 == 0:
             self.clearbars()
         self.tbar.refresh()
         self.t2bar.refresh()
         self.cbar.refresh()
         self.rbar.refresh()
-
 
     def log(self, message):
         message = message + '\n' + ('------' * 25)
@@ -479,6 +493,19 @@ class TPUMonitor:
         self.profiler_ver = 'v2'
         self.tpu_profiler = self.tpu_util
 
+    def get_time(self, fmt='mins'):
+        _stoptime = time.time()
+        total_time = _stoptime - self.time
+        if fmt in _timer_formats['wks']:
+            total_time /= 604800
+        elif fmt in _timer_formats['days']:
+            total_time /= 86400
+        elif fmt in _timer_formats['hrs']:
+            total_time /= 3600
+        elif fmt in _timer_formats['mins']:
+            total_time /= 60
+        return total_time
+
     @classmethod
     def tpu_utilization(cls, service_addr, duration_ms, monitoring_level):
         return profiler_client.monitor(service_addr, duration_ms, monitoring_level)
@@ -510,3 +537,6 @@ class TPUMonitor:
 
     def __exit__(self, *_):
         self.closebars()
+    
+    def __enter__(self):
+        return self
