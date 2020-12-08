@@ -31,8 +31,10 @@ setup(
     python_requires='>3.6',
     install_requires=[
         "tqdm>=4.50.0",
-        "tensorflow>=2.0",
+        "google-cloud-monitoring",
+        "tensorflow",
         "psutil",
+        "pysimdjson",
         "re",
     ],
     packages=packages,
