@@ -1,5 +1,11 @@
 # tpubar
  Google Cloud TPU Utilization Bar for Training Models
+<p align="center">
+    <br>
+    <img src="docs/tpumonitor.png"/>
+    <br>
+<p>
+
 
 I wouldn't really use this unless you know what you're doing
 

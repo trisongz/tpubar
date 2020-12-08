@@ -8,5 +8,5 @@ x = 1
 while True:
     time.sleep(5)
     x += 1
-    if x % 3 == 0:
-        print('trying to mess up stuff yea')
+    #if x % 3 == 0:
+    #    print('trying to mess up stuff yea')
