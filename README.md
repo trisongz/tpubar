@@ -14,7 +14,7 @@ from tpubar import TPUMonitor
 # if fileout is None, uses sys.stdout
 # colors can be defined using standard cli colors or hex (e.g. 'green' or ' #00 ff00')
 
-monitor = TPUMonitor(refresh_secs=10, fileout=None, verbose=True, tpu_util='green', tpu_active='yellow', cpu_util='blue', ram_util='blue')
+monitor = TPUMonitor(refresh_secs=10, fileout=None, verbose=True, tpu_util='green', tpu_secondary='yellow', cpu_util='blue', ram_util='blue')
 monitor.start()
 
 # Can be called to retrieve stats
@@ -23,10 +23,19 @@ stats = monitor.current_stats
 # Use stats.get(var, '') to avoid errors since Idle Time and Idle String don't return anything until after full TPU initialization.
 
 returns {
-    'idle_time': float,
-    'idle_string', str,
+    'idle_time': float, # (TF2 or Colab)
+    'idle_string', str, # (TF2 or Colab)
     'mxu': float,
-    'mxu_string': str
+    'mxu_string': str # (TF2 or Colab)
+    'tpu_mem': float? # (TF 1)
 }
 
 ```
+
+## Contributors
+
+@shawwn
+
+## Acknowledgements
+
+Tensorflow Research Cloud for providing TPU Resources
