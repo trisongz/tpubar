@@ -1,8 +1,9 @@
 # tpubar
  Google Cloud TPU Utilization Bar for Training Models
+ 
 <p align="center">
     <br>
-    <img src="docs/tpumonitor.png"/>
+    <img src="docs/tpubar_img.png"/>
     <br>
 <p>
 
@@ -30,6 +31,12 @@ stats = monitor.current_stats
 tpu_mem = stats.get(tpu_memory, '')
 
 ```
+
+<p align="center">
+    <br>
+    <img src="docs/tpumonitor.png"/>
+    <br>
+<p>
 
 ## Notes
 
