@@ -440,7 +440,7 @@ class TPUMonitor:
         
         stats = {
             'tpu_mxu': curr_mxu,
-            'tpu_memory_percent': min(mem_perc * 100, 100),
+            'tpu_memory_percent': min(mem_perc * 100, 100.00),
             'tpu_memory_used': mem_used,
             'tpu_memory_string': f'{mem_str}/{total_mem_str}'
         }
