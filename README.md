@@ -11,7 +11,10 @@ pip install --upgrade git+https://github.com/trisongz/tpubar.git
 ```python3
 from tpubar import TPUMonitor
 
-monitor = TPUMonitor()
+# if fileout is None, uses sys.stdout
+# colors can be defined using standard cli colors or hex (e.g. 'green' or ' #00 ff00')
+
+monitor = TPUMonitor(refresh_secs=10, fileout=None, verbose=True, tpu_util='green', tpu_active='yellow', cpu_util='blue', ram_util='blue')
 monitor.start()
 
 # Can be called to retrieve stats
