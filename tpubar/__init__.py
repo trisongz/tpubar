@@ -11,7 +11,7 @@ from threading import Thread
 
 from tensorflow.python.distribute.cluster_resolver import tpu_cluster_resolver as resolver
 from tensorflow.python.profiler import profiler_client
-from tensorflow.python.profiler import profiler_v2 as profiler
+#from tensorflow.python.profiler import profiler_v2 as profiler
 from tensorflow.python.framework import errors
 
 
@@ -60,8 +60,9 @@ def queryhw():
 
 
 class TPUMonitor:
-    def __init__(self, refresh_secs=10, fileout=None, verbose=True, tpu_util='green', tpu_active='yellow', cpu_util='blue', ram_util='blue'):
-        tpu_cluster_resolver = resolver.TPUClusterResolver(os.environ.get('TPU_NAME', None))
+    def __init__(self, tpu_name=None, refresh_secs=10, fileout=None, verbose=True, tpu_util='green', tpu_active='yellow', cpu_util='blue', ram_util='blue'):
+        tpu_name = tpu_name if tpu_name else os.environ.get('TPU_NAME', None)
+        tpu_cluster_resolver = resolver.TPUClusterResolver(tpu_name)
         service_addr = tpu_cluster_resolver.get_master()
         self.service_addr = service_addr.replace('grpc://', '').replace(':8470', ':8466')
         self.workers_list = get_workers_list(tpu_cluster_resolver)
