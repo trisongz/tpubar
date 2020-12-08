@@ -35,6 +35,7 @@ setup(
         "tensorflow",
         "psutil",
         "pysimdjson",
+        "tpunicorn",
     ],
     packages=packages,
     classifiers=[
