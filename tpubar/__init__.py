@@ -12,7 +12,7 @@ import tensorflow as tf
 
 from subprocess import check_output
 from tqdm.auto import tqdm
-from threading import Thread
+from threading import Thread, Lock
 from datetime import datetime
 
 parser = json.Parser()
@@ -26,14 +26,17 @@ except ImportError:
 
 
 env['tf2'] = True if tf.__version__.startswith('2') else False
-if env['tf2'] or env['colab']:
-    from tensorflow.python.distribute.cluster_resolver import tpu_cluster_resolver as resolver
+from tensorflow.python.distribute.cluster_resolver import tpu_cluster_resolver as resolver
+try:
     from tensorflow.python.profiler import profiler_client
     from tensorflow.python.framework import errors
-else:
-    import google.auth
-    from google.cloud import monitoring_v3
-    from google.protobuf.json_format import MessageToJson
+    env['profiler'] = True
+except ImportError:
+    env['profiler'] = False
+
+import google.auth
+from google.cloud import monitoring_v3
+from google.protobuf.json_format import MessageToJson
 
 # https://stackoverflow.com/questions/6027558/flatten-nested-dictionaries-compressing-keys
 def flatten(d, parent_key='', sep='_'):
@@ -68,6 +71,8 @@ metrics = {
     'vm_disk_write': "compute.googleapis.com/instance/disk/write_bytes_count",
     'vm_disk_read': "compute.googleapis.com/instance/disk/read_bytes_count",
     'tpu_core_mxu': "tpu.googleapis.com/tpu/mxu/utilization",
+    'tpu_container_cpu': "tpu.googleapis.com/container/cpu/utilization",
+    'tpu_container_mem': "tpu.googleapis.com/container/memory/usage",
     'tpu_host_cpu': "tpu.googleapis.com/cpu/utilization",
     'tpu_host_mem': "tpu.googleapis.com/memory/usage",
     'tpu_host_net_sent': "tpu.googleapis.com/network/sent_bytes_count",
@@ -112,8 +117,8 @@ def gce_series_getattrs(series, attrs, *, short=False):
 
 def gce_tpu_labeler(series, **options):
     if options.get('short'):
-        return gce_series_getattrs(series, 'node_id worker_id core', short=True)
-    return gce_series_getattrs(series, 'project_id zone node_id worker_id core')
+        return gce_series_getattrs(series, 'node_id worker_id core container_name', short=True)
+    return gce_series_getattrs(series, 'project_id zone node_id worker_id core container_name')
 
 
 labelers = {
@@ -128,6 +133,8 @@ labelers = {
     "compute.googleapis.com/instance/disk/read_bytes_count":
     gce_instance_disk_labeler,
     "tpu.googleapis.com/tpu/mxu/utilization":
+    gce_tpu_labeler,
+    "tpu.googleapis.com/container/memory/usage":
     gce_tpu_labeler,
     "tpu.googleapis.com/cpu/utilization":
     gce_tpu_labeler,
@@ -230,7 +237,7 @@ def FormatSize(bytes, suffix="B"):
     factor = 1024
     for unit in ["", "K", "M", "G", "T", "P"]:
         if bytes < factor:
-            return f"{bytes:.2f}{unit}{suffix}"
+            return bytes, f"{bytes:.2f}{unit}{suffix}"
         bytes /= factor
 
 def run_command(cmd):
@@ -255,12 +262,63 @@ def queryhw():
     return {'name': cpu_name, 'cores': cores, 'threads': threads}
 
 
+
+def parse_tpu_data(tpu):
+    data = tpu['name'].split('/')
+    tpu_name, tpu_zone = data[-1], data[-3]
+    tpu_config = {
+        'name': tpu_name,
+        'mesh': tpu['acceleratorType'],
+        'region': tpu_zone,
+        'master': tpu['ipAddress'] if 'ipAddress' in tpu else None,
+    }
+    return tpu_config
+
+def tpunicorn_query(project):
+    config = {'project': project}
+    if not env['colab']:
+        import tpunicorn
+        tpu_data = tpunicorn.tpu.get_tpus(project=project)
+        selected_tpu = None
+        tpu_name = os.environ.get('TPU_NAME', None)
+        if len(tpu_data) > 1:
+            if tpu_name:
+                for x, tpu in enumerate(tpu_data):
+                    if tpu_name in tpu['name']:
+                        selected_tpu = tpu_data[x]
+            else:
+                for x, tpu in enumerate(tpu_data):
+                    print(f'[{x}] - {tpu}')
+                
+                tpu_idx = input('Select TPU')
+                selected_tpu = tpu_data[tpu_idx]
+            
+        else:
+            selected_tpu = tpu_data[0]
+
+        tpu_config = parse_tpu_data(selected_tpu)
+        config.update(tpu_config)
+        
+    else:
+        config['master'] = os.environ['TPU_NAME']
+        config['name'] = os.environ['TPU_NAME']
+        config['region'] = 'us'
+        config['mesh'] = 'v2-8'
+    return config
+
+_mesh_memory = {
+    'v2-8': 6.872e+10,
+    'v3-8': 1.374e+11,
+}
+
 class TPUMonitor:
-    def __init__(self, tpu_name=None, refresh_secs=10, fileout=None, verbose=True, tpu_util='green', tpu_secondary='yellow', cpu_util='blue', ram_util='blue'):
-        if env['tf2'] or env['colab']:
+    def __init__(self, tpu_name=None, project=None, profiler='v1', refresh_secs=10, fileout=None, verbose=True, tpu_util='green', tpu_secondary='yellow', cpu_util='blue', ram_util='blue'):
+        if profiler in ['v1', 'v2']:
+            self.tpu_init_tf2(tpu_name) if profiler == 'v2' else self.tpu_init_tf1(tpu_name)
+        elif env['profiler'] or env['colab']:
             self.tpu_init_tf2(tpu_name)
         else:
-            self.tpu_init_tf1(tpu_name)
+            self.tpu_init_tf1(tpu_name, project)
 
         self.refresh_secs = refresh_secs
         self.fileout = fileout if fileout else sys.stdout
@@ -274,47 +332,65 @@ class TPUMonitor:
         self.current_stats = {}
         self.idx = 0
         self.hwdata()
+        self._lock = Lock()
 
     def start(self, daemon=True):
         _tpubarformat = f'TPU {self.mesh} Matrix Units: ' + '{bar} {percentage:.02f}% Utilization'
-        if env['tf2'] or env['colab']:
+        if self.profiler_ver == 'v2':
             _tpusecondarybarformat = f'TPU {self.mesh} Active Time: ' + '{bar} {percentage:.02f}% Utilization'  
         else:
-            _tpusecondarybarformat = f'TPU {self.mesh} Memory: ' + '{bar} {percentage:.02f}% Utilization'  
+            _tpusecondarybarformat = f'TPU {self.mesh} Memory: ' + '{desc} {bar} {percentage:.02f}% Utilization'  
         _cpubarformat = f'CPU {self.cpu}: ' + '{bar} {percentage:.02f}% Utilization'
         _rambarformat = 'RAM {desc} {bar} {percentage:.02f}% Utilization'
-        self.tbar = tqdm(range(100), colour=self.colors['tpu_util'], bar_format=_tpubarformat, position=0, dynamic_ncols=True, leave=False, file=self.fileout)
-        self.t2bar = tqdm(range(100), colour=self.colors['tpu_secondary'], bar_format=_tpusecondarybarformat, position=1, dynamic_ncols=True, leave=False, file=self.fileout)
-        self.cbar = tqdm(range(100), colour=self.colors['cpu_util'], bar_format=_cpubarformat, position=2, dynamic_ncols=True, leave=False, file=self.fileout)
-        self.rbar = tqdm(range(100), colour=self.colors['ram_util'], bar_format=_rambarformat, position=3, dynamic_ncols=True, leave=False, file=self.fileout)
+        self.tbar = tqdm(range(100), colour=self.colors['tpu_util'], bar_format=_tpubarformat, position=0, dynamic_ncols=True, leave=True, file=self.fileout)
+        self.t2bar = tqdm(range(100), colour=self.colors['tpu_secondary'], bar_format=_tpusecondarybarformat, position=1, dynamic_ncols=True, leave=True, file=self.fileout)
+        self.cbar = tqdm(range(100), colour=self.colors['cpu_util'], bar_format=_cpubarformat, position=2, dynamic_ncols=True, leave=True, file=self.fileout)
+        self.rbar = tqdm(range(100), colour=self.colors['ram_util'], bar_format=_rambarformat, position=3, dynamic_ncols=True, leave=True, file=self.fileout)
         if daemon:
             self.alive = True
-            _background = Thread(target=self.background,)
+            _background = Thread(target=self.background, daemon=True)
             _background.start()
     
     def update(self):
-        if (self.idx+1) % 10 == 0:
-            self.clearbars()
         tpu_stats = self.tpu_profiler()
         if tpu_stats['tpu_mxu']:
             self.tbar.n = tpu_stats['tpu_mxu']
-            self.tbar.refresh()
-        idle_time = tpu_stats.get('tpu_idle_time', None)
-        tpu_mem = tpu_stats.get('tpu_memory', None)
-        if idle_time:
-            self.t2bar.n = (100.00 - idle_time)
-            self.t2bar.refresh()
-        elif tpu_mem:
-            self.t2bar.n = tpu_mem
-            self.t2bar.refresh()
+            #self.tbar.refresh(nolock=True)
+            
+        if self.profiler_ver == 'v2':
+            idle_time = tpu_stats.get('tpu_idle_time', None)
+            if idle_time:
+                self.t2bar.n = (100.00 - idle_time)
+                #self.t2bar.refresh(nolock=True)
+
+        else:
+            tpu_mem = tpu_stats.get('tpu_memory_percent', None)
+            if tpu_mem:
+                self.t2bar.n = tpu_mem
+                self.t2bar.set_description(tpu_stats.get('tpu_memory_string', ''), refresh=False)
+                #self.t2bar.refresh(nolock=True)
+                
         self.cbar.n = self.cpu_utilization()
-        self.cbar.refresh()
         rperc, rutil = self.ram_utilization()
         self.rbar.n = rperc
-        self.rbar.set_description(rutil)
-        self.rbar.refresh()
+        self.rbar.set_description(rutil, refresh=False)
+        #self.rbar.refresh(nolock=True)
         self.current_stats = tpu_stats
+
+        self.refresh_all()
+        if self.verbose:
+            self.log(str(tpu_stats))
+        
         self.idx += 1
+
+    def refresh_all(self):
+        if (self.idx+1) % 2 == 0:
+            self.clearbars()
+        self.tbar.refresh()
+        self.t2bar.refresh()
+        self.cbar.refresh()
+        self.rbar.refresh()
+
 
     def log(self, message):
         message = message + '\n' + ('------' * 25)
@@ -322,16 +398,17 @@ class TPUMonitor:
 
     def background(self):
         while self.alive:
-            try:
-                self.update()
-                time.sleep(self.refresh_secs)
-            except:
-                if self.verbose:
-                    self.log('Another TPU Profiler is Active. Pausing')
-                time.sleep(90)
-                pass
-            if not self.alive:
-                break
+            with self._lock:
+                try:
+                    self.update()
+                    time.sleep(self.refresh_secs)
+                except:
+                    if self.verbose:
+                        self.log('Another TPU Profiler is Active. Pausing')
+                    time.sleep(90)
+                    pass
+                if not self.alive:
+                    break
 
     def hwdata(self):
         cpu_data = queryhw()
@@ -351,16 +428,31 @@ class TPUMonitor:
         return stats
     
     def tpu_api(self):
+        mxu = self.monitor('tpu_core_mxu')
+        for x, lst in mxu.items():
+            curr_mxu = lst[0][-1]
+        mem = self.monitor('tpu_container_mem')
+        for x, lst in mem.items():
+            curr_mem = lst[0][-1]
+        mem_used, mem_str = FormatSize(curr_mem)
+        mem_perc = curr_mem / _mesh_memory[self.mesh]
+        _, total_mem_str = FormatSize(_mesh_memory[self.mesh])
+        
         stats = {
-            'tpu_mxu': self.monitor('tpu_core_mxu'),
-            'tpu_memory': self.monitor('tpu_host_mem')
+            'tpu_mxu': curr_mxu,
+            'tpu_memory_percent': min(mem_perc * 100, 100),
+            'tpu_memory_used': mem_used,
+            'tpu_memory_string': f'{mem_str}/{total_mem_str}'
         }
         return stats
 
-    def tpu_init_tf1(self, tpu_name=None):
+    def tpu_init_tf1(self, tpu_name=None, project=None):
         if tpu_name:
             os.environ['TPU_NAME'] = tpu_name
+        tpu_config = tpunicorn_query(project)
         self.monitor = TimeSeriesMonitor()
+        self.mesh = tpu_config['mesh']
+        self.profiler_ver = 'v1'
         self.tpu_profiler = self.tpu_api
 
     def tpu_init_tf2(self, tpu_name=None):
@@ -384,6 +476,7 @@ class TPUMonitor:
                 mesh_type['cores'] = re.search(r'[0-9]', mesh_cores).group()
         
         self.mesh = f'v{mesh_type["v"]}-{mesh_type["cores"]}'
+        self.profiler_ver = 'v2'
         self.tpu_profiler = self.tpu_util
 
     @classmethod
@@ -397,7 +490,9 @@ class TPUMonitor:
     @classmethod
     def ram_utilization(cls):
         ram = psutil.virtual_memory()
-        rutil = f'{FormatSize(ram.used)}/{FormatSize(ram.total)}'
+        _, rused = FormatSize(ram.used)
+        _, rtotal = FormatSize(ram.total)
+        rutil = f'{rused}/{rtotal}'
         return ram.percent, rutil
     
     def clearbars(self):
