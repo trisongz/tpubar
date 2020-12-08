@@ -35,7 +35,6 @@ setup(
         "tensorflow",
         "psutil",
         "pysimdjson",
-        "re",
     ],
     packages=packages,
     classifiers=[
