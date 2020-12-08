@@ -17,7 +17,7 @@ monitor.start()
 # Can be called to retrieve stats
 stats = monitor.current_stats
 
-Use stats.get(var, '') to avoid errors since Idle Time and Idle String don't return anything until after full TPU initialization.
+# Use stats.get(var, '') to avoid errors since Idle Time and Idle String don't return anything until after full TPU initialization.
 
 returns {
     'idle_time': float,
