@@ -34,8 +34,8 @@ returns {
 
 ## Contributors
 
-@shawwn
+[@shawwn](https://github.com/shawwn)
 
 ## Acknowledgements
 
-Tensorflow Research Cloud for providing TPU Resources
+[Tensorflow Research Cloud](https://www.tensorflow.org/tfrc) for providing TPU Resources
