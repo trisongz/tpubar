@@ -228,7 +228,16 @@ def tpunicorn_query(project):
     config = {'project': project}
     if not env['colab']:
         import tpunicorn
-        tpu_data = tpunicorn.tpu.get_tpus(project=project)
+        tpu_data = None
+        for zone in ['europe-west4-a', 'us-central1-f', 'us-central1-a', 'us-central1-b', 'us-central1-c', 'asia-east1-c']:
+            try:
+                tpu_data = tpunicorn.tpu.get_tpus(zone=zone, project=project)
+                if tpu_data:
+                    break
+
+            except:
+                continue
+        
         selected_tpu = None
         tpu_name = os.environ.get('TPU_NAME', None)
         if len(tpu_data) > 1:

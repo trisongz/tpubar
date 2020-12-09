@@ -47,7 +47,7 @@ _timer_formats = {
 class TPUMonitor:
     def __init__(self, tpu_name=None, project=None, profiler='v1', refresh_secs=10, fileout=None, verbose=False, disable=False, tpu_util='green', tpu_secondary='yellow', cpu_util='blue', ram_util='blue'):
         if profiler in ['v1', 'v2']:
-            self.tpu_init_tf2(tpu_name) if profiler == 'v2' else self.tpu_init_tf1(tpu_name)
+            self.tpu_init_tf2(tpu_name) if profiler == 'v2' else self.tpu_init_tf1(tpu_name, project)
         elif env['profiler'] or env['colab']:
             self.tpu_init_tf2(tpu_name)
         else:
@@ -139,10 +139,10 @@ class TPUMonitor:
                     self.alive = False
                     self.closebars()
                 
-                except:
+                except Exception as e:
                     if self.verbose:
-                        self.log('Another TPU Profiler is Active. Pausing')
-                    time.sleep(90)
+                        self.log(f'Another TPU Profiler is Active. Pausing. Error: {str(e)}')
+                    time.sleep(60)
                     pass
                 if not self.alive:
                     break
@@ -187,7 +187,7 @@ class TPUMonitor:
         if tpu_name:
             os.environ['TPU_NAME'] = tpu_name
         tpu_config = tpunicorn_query(project)
-        self.monitor = TimeSeriesMonitor()
+        self.monitor = TimeSeriesMonitor(project_id=project)
         self.mesh = tpu_config['mesh']
         self.profiler_ver = 'v1'
         self.tpu_profiler = self.tpu_api
@@ -251,6 +251,9 @@ class TPUMonitor:
         self.cbar.clear()
         self.rbar.clear()
     
+    def close(self, *_):
+        self.closebars()
+
     def closebars(self):
         self.alive = False
         self.tbar.close()
