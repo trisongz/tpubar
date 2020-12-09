@@ -14,8 +14,26 @@ I wouldn't really use this unless you know what you're doing
 pip install --upgrade git+https://github.com/trisongz/tpubar.git
 ```
 
+## Colab Quickstart
+
+```python3
+from google.colab import auth
+from tpubar import TPUMonitor
+import os
+
+auth.authenticate_user()
+
+monitor = TPUMonitor(tpu_name=os.environ.get('TPU_NAME', None), profiler='v2')
+
+# your training code below
+monitor.start()
+
+for x in dataset:
+    ops(x)
+    print(monitor.current_stats)
 
 
+```
 
 ```python3
 from tpubar import TPUMonitor
