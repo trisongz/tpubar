@@ -34,10 +34,17 @@ setup(
         "google-cloud-monitoring",
         "tensorflow",
         "psutil",
+        "click",
         "pysimdjson",
         "tpunicorn",
     ],
     packages=packages,
+    entry_points={
+        "console_scripts": [
+            "{} = {}.cli:cli".format(binary_name, package_name)
+            for binary_name in binary_names
+        ]
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Console",
