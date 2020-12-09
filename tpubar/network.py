@@ -139,6 +139,8 @@ class TimeSeriesMonitor:
     def __init__(self, project_id=None, client=None):
         if project_id is None:
             project_id = get_default_project_id()
+        elif project_id in ['tfork', 'tensorfork']:
+            project_id = 'gpt-2-15b-poetry'
         self.project_id = project_id
         if client is None:
             client = monitoring_v3.MetricServiceClient()
@@ -225,6 +227,8 @@ def parse_tpu_data(tpu):
     return tpu_config
 
 def tpunicorn_query(project):
+    if project in ['tfork', 'tensorfork']:
+        project = 'gpt-2-15b-poetry'
     config = {'project': project}
     if not env['colab']:
         import tpunicorn
