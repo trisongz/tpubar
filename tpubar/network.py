@@ -244,6 +244,9 @@ def tpunicorn_query(project):
         
         selected_tpu = None
         tpu_name = os.environ.get('TPU_NAME', None)
+        if not tpu_data:
+            print('Failed to find a TPU - Ensure you have the correct GOOGLE_APPLICATION_CREDENTIALS set for your project')
+            sys.exit()
         if len(tpu_data) > 1:
             if tpu_name:
                 for x, tpu in enumerate(tpu_data):
