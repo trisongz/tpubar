@@ -15,6 +15,8 @@ pip install --upgrade git+https://github.com/trisongz/tpubar.git
 ```
 
 
+
+
 ```python3
 from tpubar import TPUMonitor
 
@@ -42,14 +44,14 @@ tpu_mem = stats.get('tpu_memory_used', '')
 
 There are currently 2 versions of TPUBar, v1 and v2. They each use different API calls to get TPU metrics to avoid compatability issues.
 
-v1 is meant for TPU Projects running on GCE and/or Using Tensorflow < 2. Additionally, v1 can be called on a remote system (like your PC) to query your TPU running on GCE without being directly connected.
+v1 is meant for TPU Projects running on GCE and/or Using Tensorflow < 2. Additionally, v1 can be called on a remote system (like your PC) to query your TPU running on GCE without being directly connected. Not yet tested, but should also be used in Pytorch training as well.
 
 v2 is meant for Colab and/or Tensorflow 2+, and uses tensorflow APIs, which require the system to be directly connected to the TPUs.
 
 They both return different values in current_stats as of right now.
 
-- v1 returns {'tpu_mxu': float, 'tpu_memory_percent': float 'tpu_memory_used': float, 'tpu_memory_string': str}
-- v2 returns {'tpu_mxu': float, tpu_mxu_string': str, 'tpu_idle_time': float, 'tpu_idle_string': str}
+- v1 returns {'tpu_mxu': float, 'tpu_mem_per': float 'tpu_mem_used': float, 'tpu_mem_str': str, 'cpu_util': float, 'ram_util': float, 'ram_util_str': str}
+- v2 returns {'tpu_mxu': float, tpu_mxu_str': str, 'tpu_idle_time': float, 'tpu_idle_str': str, 'cpu_util': float, 'ram_util': float, 'ram_util_str': str}
 
 
 ## Contributors

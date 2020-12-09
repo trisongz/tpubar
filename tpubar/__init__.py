@@ -330,7 +330,7 @@ _timer_formats = {
 }
 
 class TPUMonitor:
-    def __init__(self, tpu_name=None, project=None, profiler='v1', refresh_secs=10, fileout=None, verbose=False, tpu_util='green', tpu_secondary='yellow', cpu_util='blue', ram_util='blue'):
+    def __init__(self, tpu_name=None, project=None, profiler='v1', refresh_secs=10, fileout=None, verbose=False, disable=False, tpu_util='green', tpu_secondary='yellow', cpu_util='blue', ram_util='blue'):
         if profiler in ['v1', 'v2']:
             self.tpu_init_tf2(tpu_name) if profiler == 'v2' else self.tpu_init_tf1(tpu_name)
         elif env['profiler'] or env['colab']:
@@ -341,6 +341,7 @@ class TPUMonitor:
         self.refresh_secs = refresh_secs
         self.fileout = fileout if fileout else sys.stdout
         self.verbose = verbose
+        self.bars_disabled = disable
         self.colors = {
             'tpu_util': tpu_util,
             'tpu_secondary': tpu_secondary,
@@ -361,10 +362,10 @@ class TPUMonitor:
             _tpusecondarybarformat = f'TPU {self.mesh} Memory: ' + '{desc} {bar} {percentage:.02f}% Utilization'  
         _cpubarformat = f'CPU {self.cpu}: ' + '{bar} {percentage:.02f}% Utilization'
         _rambarformat = 'RAM {desc} {bar} {percentage:.02f}% Utilization'
-        self.tbar = tqdm(range(100), colour=self.colors['tpu_util'], bar_format=_tpubarformat, position=0, dynamic_ncols=True, leave=True, file=self.fileout)
-        self.t2bar = tqdm(range(100), colour=self.colors['tpu_secondary'], bar_format=_tpusecondarybarformat, position=1, dynamic_ncols=True, leave=True, file=self.fileout)
-        self.cbar = tqdm(range(100), colour=self.colors['cpu_util'], bar_format=_cpubarformat, position=2, dynamic_ncols=True, leave=True, file=self.fileout)
-        self.rbar = tqdm(range(100), colour=self.colors['ram_util'], bar_format=_rambarformat, position=3, dynamic_ncols=True, leave=True, file=self.fileout)
+        self.tbar = tqdm(range(100), colour=self.colors['tpu_util'], bar_format=_tpubarformat, position=0, dynamic_ncols=True, leave=True, file=self.fileout, disable=self.bars_disabled)
+        self.t2bar = tqdm(range(100), colour=self.colors['tpu_secondary'], bar_format=_tpusecondarybarformat, position=1, dynamic_ncols=True, leave=True, file=self.fileout, disable=self.bars_disabled)
+        self.cbar = tqdm(range(100), colour=self.colors['cpu_util'], bar_format=_cpubarformat, position=2, dynamic_ncols=True, leave=True, file=self.fileout, disable=self.bars_disabled)
+        self.rbar = tqdm(range(100), colour=self.colors['ram_util'], bar_format=_rambarformat, position=3, dynamic_ncols=True, leave=True, file=self.fileout, disable=self.bars_disabled)
         if daemon:
             self.alive = True
             _background = Thread(target=self.background, daemon=True)
@@ -381,17 +382,18 @@ class TPUMonitor:
                 self.t2bar.n = (100.00 - idle_time)
 
         else:
-            tpu_mem = tpu_stats.get('tpu_memory_percent', None)
+            tpu_mem = tpu_stats.get('tpu_mem_util', None)
             if tpu_mem:
                 self.t2bar.n = tpu_mem
-                self.t2bar.set_description(tpu_stats.get('tpu_memory_string', ''), refresh=False)
-                
-        self.cbar.n = self.cpu_utilization()
+                self.t2bar.set_description(tpu_stats.get('tpu_mem_str', ''), refresh=False)
+        
+        cpu_util = self.cpu_utilization()
+        self.cbar.n = cpu_util
         rperc, rutil = self.ram_utilization()
+        tpu_stats.update({'cpu_util': cpu_util, 'ram_util': rperc, 'ram_util_str': rutil})
         self.rbar.n = rperc
         self.rbar.set_description(rutil, refresh=False)
         self.current_stats = tpu_stats
-
         self.refresh_all()
         if self.verbose:
             self.log(str(tpu_stats))
@@ -429,16 +431,16 @@ class TPUMonitor:
         self.cpu = cpu_data['name'].replace('CPU', '').strip() + ' ' + str(cpu_data['cores']) + 'vCPU/' + str(cpu_data['threads']) + ' Threads'
 
     def tpu_util(self):
-        stats = {}
+        stats = {'tpu_idle_time': 100.00, 'tpu_idle_str': '', 'tpu_mxu': 0.00, 'tpu_mxu_str': ''}
         util = self.tpu_utilization(self.service_addr, self.duration_ms, self.monitoring_level)
         util = util.split('\n')
         for stat in util:
             if 'TPU idle time' in stat:
                 stats['tpu_idle_time'] = float(stat.split(':')[-1].replace('%','').strip())
-                stats['tpu_idle_string'] = stat.split('  ')[-1].strip()
+                stats['tpu_idle_str'] = stat.split('  ')[-1].strip()
             elif 'Utilization of TPU' in stat:
                 stats['tpu_mxu'] = float(stat.split(':')[-1].replace('%','').strip())
-                stats['tpu_mxu_string'] = ' ' + stat.strip()
+                stats['tpu_mxu_str'] = ' ' + stat.strip()
         return stats
     
     def tpu_api(self):
@@ -454,9 +456,9 @@ class TPUMonitor:
         
         stats = {
             'tpu_mxu': curr_mxu,
-            'tpu_memory_percent': min(mem_perc * 100, 100.00),
-            'tpu_memory_used': mem_used,
-            'tpu_memory_string': f'{mem_str}/{total_mem_str}'
+            'tpu_mem_per': min(mem_perc * 100, 100.00),
+            'tpu_mem_used': mem_used,
+            'tpu_mem_str': f'{mem_str}/{total_mem_str}'
         }
         return stats
 
@@ -479,7 +481,7 @@ class TPUMonitor:
         self.duration_ms = 1000
         util = self.tpu_utilization(self.service_addr, self.duration_ms, self.monitoring_level)
         util = util.split('\n')
-        mesh_type = {'v': None, 'cores': None}
+        mesh_type = {'v': 'v2', 'cores': 8}
         for stat in util:
             if 'TPU type' in stat:
                 tpu = stat.replace('TPU type: TPU', '').strip()
@@ -489,7 +491,7 @@ class TPUMonitor:
                 mesh_cores = stat[:idx].strip()
                 mesh_type['cores'] = re.search(r'[0-9]', mesh_cores).group()
         
-        self.mesh = f'v{mesh_type["v"]}-{mesh_type["cores"]}'
+        self.mesh = f'{mesh_type["v"]}-{mesh_type["cores"]}'
         self.profiler_ver = 'v2'
         self.tpu_profiler = self.tpu_util
 
