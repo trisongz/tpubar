@@ -41,6 +41,7 @@ def monitor_tpubar(tpu_name, project, verbose):
         except KeyboardInterrupt:
             click.echo(f'\nShutting Down Monitor')
             monitor.close()
+            sys.exit()
 
 @cli.command('test')
 @click.argument('tpu_name', type=click.STRING, default=os.environ.get('TPU_NAME', None))
