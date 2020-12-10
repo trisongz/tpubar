@@ -106,6 +106,9 @@ tpubar monitor [tpuname] --project [gcp_project] (optional)
 # Test Run for 60 secs
 tpubar test [tpuname] --project [gcp_project] (optional)
 
+# Create or use an application key found in tpubar/auth.json
+tpubar auth [adc_name] -l (list auths)
+
 # Create new tmux session
 tpubar sess [session_name]
 

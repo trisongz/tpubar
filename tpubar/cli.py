@@ -96,6 +96,38 @@ def trace_tpubar(tpu_name, verbose):
             click.echo(f'\nShutting Down Tracer')
             sys.exit()
 
+@cli.command('auth')
+@click.argument('auth_name', type=click.STRING, default=os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', None))
+@click.option('-l', '--list_auths', is_flag=True)
+def set_auth(auth_name, list_auths):
+    from tpubar import env, auths, update_auth
+    click.echo('\n')
+    if list_auths:
+        click.echo('Listing Auths')
+        for name, adc_path in auths.items():
+            click.echo(f'- {name}: {adc_path}')
+        click.echo('\n')
+
+    click.echo(f'Current ADC is set to {os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "None")}')
+    if auth_name in auths.keys():
+        if auths[auth_name] not in auths.values():
+            click.echo(f'Setting {auth_name} to BACKUP_ADC_PATH')
+            auths['BACKUP_ADC_PATH'] = auths[auth_name]
+        click.echo(f'- {auth_name} is now the Default ADC: {auths[auth_name]}')
+        auths['DEFAULT_ADC'] = auths[auth_name]
+    
+    else:
+        click.echo(f'{auth_name} was not found in {list(auths.keys())} - Creating New Auth')
+        adc_name = click.prompt('Please enter a name for your ADC', type=click.STRING)
+        adc_path = click.prompt('Please enter a path to GOOGLE_APPLICATION_CREDENTIALS', type=click.STRING)
+        assert os.path.exists(adc_path), 'Path to GOOGLE_APPLICATION_CREDENTIALS was not found. Exiting'
+        auths.update({adc_name: adc_path})
+        auths['DEFAULT_ADC'] = adc_path
+        click.echo(f'- {adc_name} is now the Default ADC: {adc_path}')
+    update_auth(auths)
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = auths['DEFAULT_ADC']
+
+
 @cli.command('sess')
 @click.argument('session_name', default='train')
 def create_sess(session_name):
