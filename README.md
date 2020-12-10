@@ -17,6 +17,8 @@ pip install --upgrade tpubar
 pip install --upgrade git+https://github.com/trisongz/tpubar.git
 ```
 
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/trisongz/tpubar/blob/master/docs/T5_on_TPU_Torch_XLA_TPUBar.ipynb)
+
 ## Quickstart
 
 ```python3
