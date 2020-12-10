@@ -24,6 +24,7 @@ if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
     else:
         print('No GOOGLE_APPLICATION_CREDENTIALS Detected as Environment Variable. You may run into TPU Authentication issues.')
 
+env['dir'] = os.path.abspath(os.path.dirname(__file__))
 import tpubar.utils
 import tpubar.host
 import tpubar.network

@@ -17,6 +17,7 @@ from tpubar.network import TimeSeriesMonitor, get_workers_list, tpunicorn_query
 
 if env['profiler']:
     from tensorflow.python.profiler import profiler_client
+    from tensorflow.python.profiler import profiler_v2 as profiler
 
 
 _mesh_memory = {
@@ -46,7 +47,9 @@ _timer_formats = {
 
 class TPUMonitor:
     def __init__(self, tpu_name=None, project=None, profiler='v1', refresh_secs=10, fileout=None, verbose=False, disable=False, tpu_util='green', tpu_secondary='yellow', cpu_util='blue', ram_util='blue'):
-        if profiler in ['v1', 'v2']:
+        if profiler == 'trace':
+            self.tpu_init_tf2(tpu_name)
+        elif profiler in ['v1', 'v2']:
             self.tpu_init_tf2(tpu_name) if profiler == 'v2' else self.tpu_init_tf1(tpu_name, project)
         elif env['profiler'] or env['colab']:
             self.tpu_init_tf2(tpu_name)
@@ -244,6 +247,19 @@ class TPUMonitor:
         _, rtotal = FormatSize(ram.total)
         rutil = f'{rused}/{rtotal}'
         return ram.percent, rutil
+    
+    def trace(self):
+        self.trace_dir = os.path.join(env['dir'], 'logs')
+        os.makedirs(self.trace_dir, exist_ok=True)
+        options = profiler.ProfilerOptions(host_tracer_level=self.monitoring_level)
+        while self.alive:
+            with self._lock:
+                try:
+                    profiler_client.trace(self.service_addr, self.trace_dir, self.duration_ms, self.workers_list, 5, options)
+                except KeyboardInterrupt:
+                    self.alive = False
+                    logger.info('Closing Tracer')
+                    sys.exit()
     
     def clearbars(self):
         self.tbar.clear()

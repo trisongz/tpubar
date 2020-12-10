@@ -1,11 +1,9 @@
 
-tpubar.egg-info/dependency_links.txt
-tpubar.egg-info/PKG-INFO
-tpubar.egg-info/requires.txt
-tpubar.egg-info/SOURCES.txt
-tpubar.egg-info/top_level.txt
-tpubar/__pycache__/__init__.cpython-36.pyc
+tpubar.egg-info*
 *.vscode
 *cache
 *__pycache__
-tpubar.egg-info/entry_points.txt
+*logs
+dist/*
+build/*
+build.sh

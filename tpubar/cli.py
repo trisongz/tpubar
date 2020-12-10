@@ -70,6 +70,32 @@ def test_tpubar(tpu_name, project):
         time.sleep(10)
     click.echo(f'\nCompleted Testing')
 
+@cli.command('trace')
+@click.argument('tpu_name', type=click.STRING, default=os.environ.get('TPU_NAME', None))
+@click.option('-v', '--verbose', is_flag=True)
+def trace_tpubar(tpu_name, verbose):
+    tpu_name = tpu_name if tpu_name else os.environ.get('TPU_NAME', None)
+    if not tpu_name:
+        tpu_name = click.prompt('Please enter a TPU Name', type=click.STRING)
+        if not tpu_name:
+            raise ValueError('Valid TPU Name must be selected')
+    if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', None):
+        adc = click.prompt('Please enter a path to GOOGLE_APPLICATION_CREDENTIALS', type=click.STRING)
+        if adc:
+            os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = adc
+    
+    click.echo(f'Tracing TPU: {tpu_name} until cancelled.')
+    from tpubar import TPUMonitor, env
+
+    monitor = TPUMonitor(tpu_name=tpu_name, profiler='trace', refresh_secs=10, verbose=verbose)
+    monitor.trace()
+    while True:
+        try:
+            time.sleep(10)
+        except KeyboardInterrupt:
+            click.echo(f'\nShutting Down Tracer')
+            sys.exit()
+
 @cli.command('sess')
 @click.argument('session_name', default='train')
 def create_sess(session_name):
