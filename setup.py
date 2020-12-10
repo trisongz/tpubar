@@ -40,6 +40,10 @@ setup(
         "tpunicorn",
     ],
     packages=packages,
+    package_data = {
+        'json': ['*.json'],
+    },
+    include_package_data=True,
     entry_points={
         "console_scripts": [
             "{} = {}.cli:cli".format(binary_name, package_name)

@@ -8,6 +8,7 @@ try:
 except ImportError:
     env['colab'] = False
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
 import tensorflow as tf
 env['tf2'] = True if tf.__version__.startswith('2') else False
 try:
@@ -40,7 +41,7 @@ else:
         update_auth(auths)
 
     else:
-        print('No GOOGLE_APPLICATION_CREDENTIALS Detected as Environment Variable. You may run into TPU Authentication issues.')
+        print('No GOOGLE_APPLICATION_CREDENTIALS Detected as Environment Variable. Run "tpubar auth auth_name" to set your ADC.')
 
 def set_auth(auth_name):
     if auth_name in auths.keys():
@@ -51,7 +52,7 @@ def set_auth(auth_name):
         os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = auths[auth_name]
         update_auth(auths)
     else:
-        print(f'Not able to find {auth_name} in Auth File. Update it first.')
+        print(f'Not able to find {auth_name} in Auth File. Update it first using "tpu auth {auth_name}".')
 
 
 import tpubar.utils
