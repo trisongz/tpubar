@@ -43,14 +43,18 @@ else:
 
     else:
         try:
+            import google.auth
             import googleapiclient.discovery
+
             storage_client = googleapiclient.discovery.build('storage', 'v1')
-            buckets = storage_client.buckets().list().execute()
+            _, project_id = google.auth.default()
+            buckets = storage_client.buckets(project=project_id).list().execute()
             if buckets:
                 auths['DEFAULT_ADC'] = 'IMPLICIT'
                 update_auth(auths)
 
-        except:
+        except Exception as e:
+            print(str(e))
             print('No GOOGLE_APPLICATION_CREDENTIALS Detected as Environment Variable. Run "tpubar auth auth_name" to set your ADC. You may run into Issues otherwise.')
 
 def set_auth(auth_name):
