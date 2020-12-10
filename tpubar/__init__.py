@@ -46,11 +46,14 @@ else:
         if creds:
             default_adc = os.path.join(os.environ.get('HOME', env['dir']), 'adc.json')
             creds.expiry = None
-            _creds = dict(creds.__dict__)
-            for k in _creds.keys():
+            creds = dict(creds.__dict__)
+            _creds = dict()
+            for k in creds.keys():
                 if k.startswith('_'):
-                    val = _creds.pop(k)
-                    _creds[k[1:]] = val
+                    _creds[k[1:]] = creds[k]
+                else:
+                    _creds[k] = creds[k]
+
             _creds['type'] = 'authorized_user' if _creds.get('refresh_token', None) else 'service_account'
             json.dump(_creds, open(default_adc, 'w'))
             auths['DEFAULT_ADC'] = default_adc
