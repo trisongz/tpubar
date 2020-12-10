@@ -128,8 +128,12 @@ class TPUMonitor:
     def log(self, message):
         if not isinstance(message, str):
             message = str(message)
-        message = message + '\n' + ('------' * 25)
+        message = message + '\n' + ('------' * 15)
         self.tbar.write(message)
+    
+    def reroute_print(self, printer):
+        printer = self.log
+        return printer
 
     def background(self):
         while self.alive:
@@ -145,7 +149,7 @@ class TPUMonitor:
                 
                 except Exception as e:
                     if self.verbose:
-                        self.log(f'Another TPU Profiler is Active. Pausing. Error: {str(e)}')
+                        self.log(f'Error Encountered. Pausing. Error: {str(e)}')
                     time.sleep(60)
                     pass
                 if not self.alive:
@@ -256,13 +260,13 @@ class TPUMonitor:
         else:
             self.log(f'Hook {name} not found')
 
-    def fire_hooks(self, message, *args, **kwargs):
+    def fire_hooks(self, message, force=False, *args, **kwargs):
         if self.verbose:
             self.log(message)
         if self.hooks:
             for hook_name in self.hooks:
                 hook = self.hooks[hook_name]
-                if self.idx % hook['freq'] == 0:
+                if self.idx % hook['freq'] == 0 or force:
                     hook['func'](message, *args, **kwargs)
 
 

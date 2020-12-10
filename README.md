@@ -91,6 +91,37 @@ monitor.start()
 stats = monitor.current_stats
 tpu_mxu = stats.get('tpu_mxu', '')
 
+# Adding Hooks
+# hook = {'name': 'Slack', 'func': notificationclient.message, 'freq': 10}
+# This will call notificiationclient.message(monitor.current_stats) every 10 monitoring iterations
+# If refresh_secs = 10, then function will fire every 100 seconds.
+# The hook will receive all the stats returned above as a dict.
+
+monitor.add_hook(name='slack', hook=notificationclient.message, freq=10)
+
+# Remove a Hook
+monitor.rm_hook(name='slack')
+
+# Manually Firing a Hook
+# To force all hooks to fire, say at the end of a training loop
+
+stats = monitor.current_stats
+message = do_format(stats) # format your message into a string
+
+monitor.fire_hooks(message, force=True)
+
+# Rerouting Print Functions
+# to avoid line breaks and overlapping bars in std.out, you can optionally reroute any print function to use tpubar's logger, which uses tqdm.write. This will return the print function
+
+_logger = logger # back up the obj in case things go wrong
+logger.info = monitor.reroute_print(logger.info)
+
+# Restore the original
+logger.info = _logger.info
+
+# Getting the current time (from when tpubar started monitoring)
+train_time = monitor.get_time(fmt='hrs') # ['secs', 'mins', 'hrs', 'days', 'wks']
+
 
 ```
 

@@ -57,6 +57,7 @@ else:
             _creds['type'] = 'authorized_user' if _creds.get('refresh_token', None) else 'service_account'
             json.dump(_creds, open(default_adc, 'w'))
             auths['DEFAULT_ADC'] = default_adc
+            print(f'Found ADC Credentials Implicitly. Saving to {default_adc} for future runs.\nSet GOOGLE_APPLICATION_CREDENTIALS={default_adc} in Environment to allow libraries like Tensorflow to locate your ADC.')
             update_auth(auths)
 
         else:
