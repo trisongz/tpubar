@@ -43,9 +43,10 @@ else:
     else:
         import google.auth
         creds, project_id = google.auth.default()
-        default_adc = os.path.join(os.environ.get('HOME', env['dir']), 'adc.json')
-        json.dump(creds.__dict__, open(default_adc, 'w'))
         if creds:
+            default_adc = os.path.join(os.environ.get('HOME', env['dir']), 'adc.json')
+            creds.expiry = None
+            json.dump(creds.__dict__, open(default_adc, 'w'))
             auths['DEFAULT_ADC'] = default_adc
             update_auth(auths)
 
