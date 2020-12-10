@@ -102,17 +102,17 @@ class TPUMonitor:
                 self.t2bar.n = (100.00 - idle_time)
 
         else:
-            tpu_mem = tpu_stats.get('tpu_mem_util', None)
+            tpu_mem = tpu_stats.get('tpu_mem_per', None)
             if tpu_mem:
                 self.t2bar.n = tpu_mem
                 self.t2bar.set_description(tpu_stats.get('tpu_mem_str', ''), refresh=False)
         
         cpu_util = self.cpu_utilization()
         self.cbar.n = cpu_util
-        rperc, rutil = self.ram_utilization()
-        tpu_stats.update({'cpu_util': cpu_util, 'ram_util': rperc, 'ram_util_str': rutil})
+        rperc, rutil, rutilstr = self.ram_utilization()
+        tpu_stats.update({'cpu_util': cpu_util, 'ram_per': rperc, 'ram_util': rutil, 'ram_util_str': rutilstr})
         self.rbar.n = rperc
-        self.rbar.set_description(rutil, refresh=False)
+        self.rbar.set_description(rutilstr, refresh=False)
         self.current_stats = tpu_stats
         self.refresh_all()
         self.fire_hooks(str(tpu_stats))
@@ -126,6 +126,8 @@ class TPUMonitor:
         self.rbar.refresh()
 
     def log(self, message):
+        if not isinstance(message, str):
+            message = str(message)
         message = message + '\n' + ('------' * 25)
         self.tbar.write(message)
 
@@ -174,14 +176,24 @@ class TPUMonitor:
         for x, lst in mem.items():
             curr_mem = lst[0][-1]
         mem_used, mem_str = FormatSize(curr_mem)
-        mem_perc = curr_mem / _mesh_memory[self.mesh]
-        _, total_mem_str = FormatSize(_mesh_memory[self.mesh])
+        vm_cpu = self.monitor('vm_cpu')
+        for x, lst in vm_cpu.items():
+            curr_cpu = lst[0][-1]
+        tpu_cpu = self.monitor('tpu_host_cpu')
+        for x, lst in tpu_cpu.items():
+            curr_tpucpu = lst[0][-1]
+        if self.tpu_max_mem <= curr_mem:
+            self.tpu_max_mem = curr_mem + 1e+9
+        mem_perc = curr_mem / self.tpu_max_mem
+        _, total_mem_str = FormatSize(self.tpu_max_mem)
         
         stats = {
             'tpu_mxu': curr_mxu,
-            'tpu_mem_per': min(mem_perc * 100, 100.00),
+            'tpu_mem_per': (mem_perc * 100),
             'tpu_mem_util': mem_used,
-            'tpu_mem_str': f'{mem_str}/{total_mem_str}'
+            'tpu_mem_str': f'{mem_str}/{total_mem_str}',
+            'tpu_vm_cpu_per': curr_cpu,
+            'tpu_host_cpu_per': curr_tpucpu,
         }
         return stats
 
@@ -191,6 +203,7 @@ class TPUMonitor:
         tpu_config = tpunicorn_query(project)
         self.monitor = TimeSeriesMonitor(project_id=project)
         self.mesh = tpu_config['mesh']
+        self.tpu_max_mem = _mesh_memory[self.mesh]
         self.profiler_ver = 'v1'
         self.tpu_profiler = self.tpu_api
 
@@ -215,6 +228,7 @@ class TPUMonitor:
                 mesh_type['cores'] = re.search(r'[0-9]', mesh_cores).group()
         
         self.mesh = f'{mesh_type["v"]}-{mesh_type["cores"]}'
+        self.tpu_max_mem = _mesh_memory[self.mesh]
         self.profiler_ver = 'v2'
         self.tpu_profiler = self.tpu_util
 
@@ -263,10 +277,10 @@ class TPUMonitor:
     @classmethod
     def ram_utilization(cls):
         ram = psutil.virtual_memory()
-        _, rused = FormatSize(ram.used)
+        rused, rusedstr = FormatSize(ram.used)
         _, rtotal = FormatSize(ram.total)
-        rutil = f'{rused}/{rtotal}'
-        return ram.percent, rutil
+        rutil = f'{rusedstr}/{rtotal}'
+        return ram.percent, rused, rutil
     
     def trace(self):
         self.trace_dir = os.path.join(env['dir'], 'logs')

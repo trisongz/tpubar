@@ -18,17 +18,19 @@ def cli(ctx, **kws):
 @click.option('-v', '--verbose', is_flag=True)
 def monitor_tpubar(tpu_name, project, verbose):
     tpu_name = tpu_name if tpu_name else os.environ.get('TPU_NAME', None)
+    from tpubar import TPUMonitor, env, auths
     if not tpu_name:
         tpu_name = click.prompt('Please enter a TPU Name', type=click.STRING)
         if not tpu_name:
             raise ValueError('Valid TPU Name must be selected')
-    if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', None):
+    
+    elif not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', None) and not auths['DEFAULT_ADC']:
         adc = click.prompt('Please enter a path to GOOGLE_APPLICATION_CREDENTIALS', type=click.STRING)
         if adc:
             os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = adc
     
     click.echo(f'Monitoring TPU: {tpu_name} until cancelled.')
-    from tpubar import TPUMonitor, env
+    
     if env['colab']:
         monitor = TPUMonitor(tpu_name=tpu_name, project=project, profiler='v2', refresh_secs=3, verbose=verbose)
     else:
@@ -48,17 +50,17 @@ def monitor_tpubar(tpu_name, project, verbose):
 @click.option('--project', type=click.STRING, default=None)
 def test_tpubar(tpu_name, project):
     tpu_name = tpu_name if tpu_name else os.environ.get('TPU_NAME', None)
+    from tpubar import TPUMonitor, env, auths
     if not tpu_name:
         tpu_name = click.prompt('Please enter a TPU Name', type=click.STRING)
         if not tpu_name:
             raise ValueError('Valid TPU Name must be selected')
-    if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', None):
+    if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', None) and not auths['DEFAULT_ADC']:
         adc = click.prompt('Please enter a path to GOOGLE_APPLICATION_CREDENTIALS', type=click.STRING)
         if adc:
             os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = adc
     
     click.echo(f'Running Test for TPUBar on TPU {tpu_name}')
-    from tpubar import TPUMonitor, env
     if env['colab']:
         monitor = TPUMonitor(tpu_name=tpu_name, project=project, profiler='v2', refresh_secs=3, verbose=True)
     else:

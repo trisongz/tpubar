@@ -26,7 +26,8 @@ def update_auth(updated_auths):
     json.dump(updated_auths, open(env['auth_path'], 'w'), indent=1)
 
 if auths.get('DEFAULT_ADC', None):
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = auths['DEFAULT_ADC']
+    if auths['DEFAULT_ADC'] != 'IMPLICIT':
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = auths['DEFAULT_ADC']
 
 elif os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', None):
     if not auths.get('DEFAULT_ADC', None):
@@ -41,7 +42,16 @@ else:
         update_auth(auths)
 
     else:
-        print('No GOOGLE_APPLICATION_CREDENTIALS Detected as Environment Variable. Run "tpubar auth auth_name" to set your ADC.')
+        try:
+            import googleapiclient.discovery
+            storage_client = googleapiclient.discovery.build('storage', 'v1')
+            buckets = storage_client.buckets().list().execute()
+            if buckets:
+                auths['DEFAULT_ADC'] = 'IMPLICIT'
+                update_auth(auths)
+
+        except:
+            print('No GOOGLE_APPLICATION_CREDENTIALS Detected as Environment Variable. Run "tpubar auth auth_name" to set your ADC. You may run into Issues otherwise.')
 
 def set_auth(auth_name):
     if auth_name in auths.keys():
