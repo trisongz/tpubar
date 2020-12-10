@@ -105,14 +105,14 @@ class TPUMonitor:
             tpu_mem = tpu_stats.get('tpu_mem_per', None)
             if tpu_mem:
                 self.t2bar.n = tpu_mem
-                self.t2bar.set_description(tpu_stats.get('tpu_mem_str', ''), refresh=False)
+                self.t2bar.set_description(tpu_stats.get('tpu_mem_str', ''), refresh=True)
         
         cpu_util = self.cpu_utilization()
         self.cbar.n = cpu_util
         rperc, rutil, rutilstr = self.ram_utilization()
         tpu_stats.update({'cpu_util': cpu_util, 'ram_per': rperc, 'ram_util': rutil, 'ram_util_str': rutilstr})
         self.rbar.n = rperc
-        self.rbar.set_description(rutilstr, refresh=False)
+        self.rbar.set_description(rutilstr, refresh=True)
         self.current_stats = tpu_stats
         self.refresh_all()
         self.fire_hooks(str(tpu_stats))
