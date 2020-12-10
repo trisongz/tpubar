@@ -9,7 +9,6 @@ packages = find_packages(
     include=[package_name, "{}.*".format(package_name)]
 )
 
-# Version info -- read without importing
 _locals = {}
 with open(os.path.join(package_name, "_version.py")) as fp:
     exec(fp.read(), None, _locals)
@@ -25,8 +24,10 @@ setup(
     version=version,
     description="tpubar",
     long_description=long_description,
+    long_description_content_type="text/markdown",
     author='Tri Songz',
     author_email='ts@scontentenginex.com',
+    keywords=['tpu', 'progress bar', 'monitoring', 'google cloud', 'tensorflow'],
     url='http://github.com/trisongz/tpubar',
     python_requires='>3.6',
     install_requires=[

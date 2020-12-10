@@ -4,6 +4,6 @@ tpubar.egg-info*
 *cache
 *__pycache__
 *logs
-dist/*
-build/*
+*dist
+*build
 build.sh

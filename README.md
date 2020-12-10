@@ -4,19 +4,23 @@
  
 <p align="center">
     <br>
-    <img src="docs/tpubar_img.png"/>
+    <img src="https://github.com/trisongz/tpubar/raw/master/docs/tpubar_img.png"/>
     <br>
 <p>
 
 
 ```shell
+# from pypi
+pip install --upgrade tpubar
+
+# from src
 pip install --upgrade git+https://github.com/trisongz/tpubar.git
 ```
 
 ## Quickstart
 
 ```python3
-
+!pip install --upgrade tpubar
 !pip install --upgrade git+https://github.com/trisongz/tpubar.git
 
 # Option #1 on Colab
@@ -115,7 +119,7 @@ tpubar killsess [session_name]
 
 <p align="center">
     <br>
-    <img src="docs/tpumonitor.png"/>
+    <img src="https://github.com/trisongz/tpubar/raw/master/docs/tpumonitor.png"/>
     <br>
 <p>
 
