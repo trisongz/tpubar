@@ -7,5 +7,5 @@ tpubar.egg-info*
 *dist
 *build
 build.sh
-*auth.json
-tpubar/auth.json
+#*auth.json
+#tpubar/auth.json

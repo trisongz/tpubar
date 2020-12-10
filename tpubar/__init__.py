@@ -22,7 +22,7 @@ env['auth_path'] = os.path.join(env['dir'], 'auth.json')
 auths = json.load(open(env['auth_path']))
 
 def update_auth(updated_auths):
-    json.dump(updated_auths, open(env['auth_path'], 'w'))
+    json.dump(updated_auths, open(env['auth_path'], 'w'), indent=1)
 
 if auths.get('DEFAULT_ADC', None):
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = auths['DEFAULT_ADC']
