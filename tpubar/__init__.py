@@ -1,4 +1,5 @@
 import os
+import json
 env = dict()
 
 try:
@@ -16,6 +17,11 @@ try:
 except ImportError:
     env['profiler'] = False
 
+env['dir'] = os.path.abspath(os.path.dirname(__file__))
+auths = json.load(open(os.path.join(env['dir'], 'auth.json')))
+if auths.get('DEFAULT_ADC', None):
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = auths['DEFAULT_ADC']
+
 if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
     if env['colab']:
         print('Authenticating with Google Cloud Engine to access TPUs')
@@ -24,7 +30,7 @@ if not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
     else:
         print('No GOOGLE_APPLICATION_CREDENTIALS Detected as Environment Variable. You may run into TPU Authentication issues.')
 
-env['dir'] = os.path.abspath(os.path.dirname(__file__))
+
 import tpubar.utils
 import tpubar.host
 import tpubar.network
