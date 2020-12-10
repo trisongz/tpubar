@@ -31,11 +31,8 @@ pip install --upgrade git+https://github.com/trisongz/tpubar.git
 
 # Option #2 on Colab
 
-from google.colab import auth
 from tpubar import TPUMonitor
 import os
-
-auth.authenticate_user()
 
 monitor = TPUMonitor(tpu_name=os.environ.get('TPU_NAME', None), profiler='v2')
 
