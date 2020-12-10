@@ -48,7 +48,7 @@ else:
 
             storage_client = googleapiclient.discovery.build('storage', 'v1')
             _, project_id = google.auth.default()
-            buckets = storage_client.buckets(project=project_id).list().execute()
+            buckets = storage_client.buckets().list(project=project_id).execute()
             if buckets:
                 auths['DEFAULT_ADC'] = 'IMPLICIT'
                 update_auth(auths)
