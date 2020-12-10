@@ -67,6 +67,7 @@ class TPUMonitor:
             'ram_util': ram_util
         }
         self.current_stats = {}
+        self.hooks = {}
         self.idx = 0
         self.hwdata()
         self.time = time.time()
@@ -90,6 +91,7 @@ class TPUMonitor:
             _background.start()
     
     def update(self):
+        self.idx += 1
         tpu_stats = self.tpu_profiler()
         if tpu_stats['tpu_mxu']:
             self.tbar.n = tpu_stats['tpu_mxu']
@@ -113,10 +115,7 @@ class TPUMonitor:
         self.rbar.set_description(rutil, refresh=False)
         self.current_stats = tpu_stats
         self.refresh_all()
-        if self.verbose:
-            self.log(str(tpu_stats))
-        
-        self.idx += 1
+        self.fire_hooks(str(tpu_stats))
 
     def refresh_all(self):
         if (self.idx+1) % 10 == 0:
@@ -232,6 +231,27 @@ class TPUMonitor:
             total_time /= 60
         return total_time
 
+    def add_hook(self, name, hook, freq=10):
+        self.hooks[name] = {'freq': freq, 'function': hook}
+        self.log(f'Added new hook {name}. Will call hook once every {freq} updates.')
+
+    def rm_hook(self, name):
+        if self.hooks.get(name, None):
+            hook = self.hooks.pop(name)
+            self.log(f'Removing hook {name}')
+        else:
+            self.log(f'Hook {name} not found')
+
+    def fire_hooks(self, message, *args, **kwargs):
+        if self.verbose:
+            self.log(message)
+        if self.hooks:
+            for hook_name in self.hooks:
+                hook = self.hooks[hook_name]
+                if self.idx % hook['freq'] == 0:
+                    hook['func'](message, *args, **kwargs)
+
+
     @classmethod
     def tpu_utilization(cls, service_addr, duration_ms, monitoring_level):
         return profiler_client.monitor(service_addr, duration_ms, monitoring_level)
@@ -258,7 +278,7 @@ class TPUMonitor:
                     profiler_client.trace(self.service_addr, self.trace_dir, self.duration_ms, self.workers_list, 5, options)
                 except KeyboardInterrupt:
                     self.alive = False
-                    logger.info('Closing Tracer')
+                    print('Closing Tracer')
                     sys.exit()
     
     def clearbars(self):
