@@ -46,7 +46,7 @@ else:
         if creds:
             default_adc = os.path.join(os.environ.get('HOME', env['dir']), 'adc.json')
             creds.expiry = None
-            _creds = json.dumps(creds.__dict__)
+            _creds = dict(creds.__dict__)
             _creds['type'] = 'authorized_user'
             json.dump(_creds, open(default_adc, 'w'))
             auths['DEFAULT_ADC'] = default_adc
