@@ -109,7 +109,22 @@ message = do_format(stats) # format your message into a string
 
 monitor.fire_hooks(message, force=True)
 
-# Rerouting Print Functions
+# Getting the current time (from when tpubar started monitoring)
+train_time = monitor.get_time(fmt='hrs') # ['secs', 'mins', 'hrs', 'days', 'wks']
+
+# Create a Timeout Monitor that sends a notification when TPU MXU falls below x% after y number of pings
+# timeout_hook = {'idx': 0, 'num_timeouts': num_timeouts, 'hook': hook, 'min_mxu': min_mxu, 'pulse': 0.00, 'warnings': 0}
+# Pulse = last recorded MXU when warning notification fires.
+monitor.create_timeout_hook(hook=notificationclient.message, min_mxu=10.00, num_timeouts=20)
+
+# Upon firing, will send to the notificationclient
+# Warnings reset after detecting TPU > min MXU.
+
+msg = "TPUBar has detected [number of warnings] periods of under [min_mxu]. Last TPU MXU Pulse: [last recorded MXU]. Time Alive: [time_active in hrs]"
+notificationclient.message(msg)
+
+
+# Rerouting Print Functions (Unstable)
 # to avoid line breaks and overlapping bars in std.out, you can optionally reroute any print function to use tpubar's logger, which uses tqdm.write. This will return the print function
 
 _logger = logger # back up the obj in case things go wrong
@@ -117,9 +132,6 @@ logger.info = monitor.reroute_print(logger.info)
 
 # Restore the original
 logger.info = _logger.info
-
-# Getting the current time (from when tpubar started monitoring)
-train_time = monitor.get_time(fmt='hrs') # ['secs', 'mins', 'hrs', 'days', 'wks']
 
 
 ```
