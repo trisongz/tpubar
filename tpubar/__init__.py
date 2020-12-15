@@ -8,7 +8,7 @@ try:
 except ImportError:
     env['colab'] = False
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 env['tf2'] = True if tf.__version__.startswith('2') else False
 try:
@@ -26,7 +26,11 @@ def update_auth(updated_auths):
     json.dump(updated_auths, open(env['auth_path'], 'w'), indent=1)
 
 if auths.get('DEFAULT_ADC', None):
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = auths['DEFAULT_ADC']
+    if auths['DEFAULT_ADC'] == 'implicit':
+        import google.auth
+        creds, project_id = google.auth.default()
+    else:
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = auths['DEFAULT_ADC']
 
 elif os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', None):
     if not auths.get('DEFAULT_ADC', None):
@@ -47,16 +51,19 @@ else:
             default_adc = os.path.join(os.environ.get('HOME', env['dir']), 'adc.json')
             creds.expiry = None
             creds = dict(creds.__dict__)
-            _creds = dict()
-            for k in creds.keys():
+            _creds = {}
+            for k in creds:
                 if k.startswith('_'):
                     _creds[k[1:]] = creds[k]
                 else:
                     _creds[k] = creds[k]
 
             _creds['type'] = 'authorized_user' if _creds.get('refresh_token', None) else 'service_account'
+            if _creds['type'] == 'service_account':
+                _creds['token_uri'] = creds.get('_token_uri', 'https://oauth2.googleapis.com/token')
+
             json.dump(_creds, open(default_adc, 'w'))
-            auths['DEFAULT_ADC'] = default_adc
+            auths['DEFAULT_ADC'] = 'implicit'
             print(f'Found ADC Credentials Implicitly. Saving to {default_adc} for future runs.\nSet GOOGLE_APPLICATION_CREDENTIALS={default_adc} in Environment to allow libraries like Tensorflow to locate your ADC.')
             update_auth(auths)
 
