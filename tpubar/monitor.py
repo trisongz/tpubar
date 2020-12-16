@@ -253,16 +253,16 @@ class TPUMonitor:
         return total_time
 
     def check_tpu_pulse(self, tpu_stats):
+        self.timeout_hook['pulse'] = tpu_stats.get('tpu_mxu', self.timeout_hook['pulse'])
         if not self.tpu_pulse:
             if tpu_stats.get('tpu_mxu', 0.00) > 5.00:
                 self.tpu_pulse = True
         else:
-            self.timeout_hook['pulse'] = tpu_stats.get('tpu_mxu', 0.00)
-            if tpu_stats.get('tpu_mxu', 0.00) < self.timeout_hook['min_mxu']:
+            if self.timeout_hook['pulse'] < self.timeout_hook['min_mxu']:
                 self.timeout_hook['idx'] += 1
                 self.timeout_hook['warnings'] += 1
                 if self.timeout_hook['warnings'] % self.timeout_hook['num_timeouts'] == 0:
-                    msg = f"TPUBar has detected {self.timeout_hook['warnings']} periods of under {self.timeout_hook['min_mxu']}. Last TPU MXU Pulse: {self.timeout_hook['pulse']}. Time Alive: {self.get_time(fmt='hrs')}"
+                    msg = f"TPUBar has detected {self.timeout_hook['warnings']} periods of under {self.timeout_hook['min_mxu']:.2f}%. Last TPU MXU Pulse: {self.timeout_hook['pulse']:.2f}%. Time Alive: {self.get_time(fmt='hrs'):.2f} hrs"
                     self.log(msg)
                     self.timeout_hook['hook'](msg)
             else:
