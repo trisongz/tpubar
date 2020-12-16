@@ -255,7 +255,7 @@ class TPUMonitor:
     def check_tpu_pulse(self, tpu_stats):
         self.timeout_hook['pulse'] = tpu_stats.get('tpu_mxu', self.timeout_hook['pulse'])
         if not self.tpu_pulse:
-            if tpu_stats.get('tpu_mxu', 0.00) > 5.00:
+            if tpu_stats.get('tpu_mxu', 0.00) > 5.00 and self.get_time(fmt='mins') > 5.00:
                 self.tpu_pulse = True
         else:
             if self.timeout_hook['pulse'] < self.timeout_hook['min_mxu']:
