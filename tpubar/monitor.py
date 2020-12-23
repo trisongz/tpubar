@@ -55,7 +55,7 @@ class TPUMonitor:
             self.tpu_init_tf2(tpu_name)
         else:
             self.tpu_init_tf1(tpu_name, project)
-
+        self.alive = False
         self.refresh_secs = refresh_secs
         self.fileout = fileout or sys.stdout
         self.verbose = verbose
@@ -75,6 +75,8 @@ class TPUMonitor:
         self._lock = Lock()
 
     def start(self, daemon=True):
+        if self.alive:
+            return
         _tpubarformat = f'TPU {self.mesh} Matrix Units: ' + '{bar} {percentage:.02f}% Utilization'
         if self.profiler_ver == 'v2':
             _tpusecondarybarformat = f'TPU {self.mesh} Active Time: ' + '{bar} {percentage:.02f}% Utilization'  

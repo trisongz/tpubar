@@ -32,7 +32,7 @@ def monitor_tpubar(tpu_name, project, verbose):
     click.echo(f'Monitoring TPU: {tpu_name} until cancelled.')
     
     if env['colab']:
-        monitor = TPUMonitor(tpu_name=tpu_name, project=project, profiler='v2', refresh_secs=3, verbose=verbose)
+        monitor = TPUMonitor(tpu_name=tpu_name, project=project, profiler='v1', refresh_secs=3, verbose=verbose)
     else:
         monitor = TPUMonitor(tpu_name=tpu_name, project=project, profiler='v1', refresh_secs=3, verbose=verbose)
 
