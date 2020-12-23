@@ -75,8 +75,6 @@ class TPUMonitor:
         self._lock = Lock()
 
     def start(self, daemon=True):
-        if self.alive:
-            return
         _tpubarformat = f'TPU {self.mesh} Matrix Units: ' + '{bar} {percentage:.02f}% Utilization'
         if self.profiler_ver == 'v2':
             _tpusecondarybarformat = f'TPU {self.mesh} Active Time: ' + '{bar} {percentage:.02f}% Utilization'  
